@@ -119,4 +119,5 @@ Architecture details are in `docs/ARCHITECTURE.md`. The original audit is in `do
   recognition polling or letter accumulation. The Live tab is 598 px tall and the Message tab 448 px, within Chrome's
   600 px popup limit.
 - Recognition works only while the local backend runs on the same computer.
-- The extension has no icon files yet, so Chrome shows a default icon.
+- The toolbar and extension-page icon is the SignBridge character, in `public/icons/` at 16, 32, 48 and 128 px. The
+  master artwork is kept in `assets/branding/`.
