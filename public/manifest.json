@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "SignBridge (experimental letter recognition)",
+  "short_name": "SignBridge",
+  "version": "0.1.0",
+  "description": "Experimental fingerspelling-letter recognition from your local SignBridge backend. Not a verified ISL translator.",
+  "action": {
+    "default_title": "SignBridge",
+    "default_popup": "popup.html"
+  },
+  "host_permissions": [
+    "http://127.0.0.1:8000/*"
+  ]
+}
