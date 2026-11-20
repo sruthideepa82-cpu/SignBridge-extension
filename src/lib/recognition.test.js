@@ -52,6 +52,17 @@ describe('interpretRecognition', () => {
     expect(interpretRecognition({ ...base, experimental: false, status: 'no_hand' }).experimental).toBe(false);
   });
 
+  it('passes the backend confidence and threshold to the confidence bar', () => {
+    const letter = interpretRecognition({ ...base, status: 'recognized', label: 'K', confidence: 0.88 });
+    expect(letter.confidence).toBe(0.88);
+    expect(letter.threshold).toBe(0.7);
+
+    const uncertain = interpretRecognition({ ...base, status: 'uncertain', confidence: 0.42 });
+    expect(uncertain.confidence).toBe(0.42);
+    expect(uncertain.threshold).toBe(0.7);
+    expect(uncertain.letter).toBeNull();
+  });
+
   it('exposes the experimental label text used by the popup', () => {
     expect(EXPERIMENTAL_LABEL).toMatch(/Experimental/);
     expect(EXPERIMENTAL_LABEL).toMatch(/unverified/);

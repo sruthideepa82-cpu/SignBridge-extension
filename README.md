@@ -13,6 +13,11 @@ backend and its AI engine are not copied here.
 - Checks that the local backend is reachable at `http://127.0.0.1:8000`.
 - Starts and stops recognition through `POST /api/camera/start` and `POST /api/camera/stop`.
 - Shows the newest result from `GET /api/recognition/latest` and displays a letter only when the backend reports `recognized`.
+- Shows a live webcam preview while recognition runs. It reads the backend's existing `GET /api/camera/stream` (MJPEG)
+  and does not open a second camera. It shows loading, paused (backend unreachable) and error states with a Retry button.
+- Glassmorphism popup (360 px wide, fits Chrome's 600 px popup height): the live camera card with status and
+  Start/Stop, the recognised letter with a confidence bar and threshold marker, the experimental warning, and a footer.
+- Starting or stopping the camera waits up to 20 seconds, because opening the webcam can take several seconds.
 - Shows plain-language errors for an unreachable backend, a camera that will not open, a missing model, and timeouts.
 - Not yet built: floating widget, text composer, text-to-speech, copy and insert. These are planned for later days.
 
@@ -67,8 +72,8 @@ npm test
 ```
 
 The tests use a mocked `fetch`. They do not need the backend, a webcam or a browser. They cover the manifest, the
-backend client (unreachable, timeout and error codes), the recognition rules and the popup's start, stop and error
-behaviour.
+backend client (unreachable, timeout and error codes, stream URL), the recognition rules, the live preview states and
+the popup's start, stop, error and popup-reopen behaviour.
 
 ## Repository layout
 
@@ -92,5 +97,6 @@ Architecture details are in `docs/ARCHITECTURE.md`. The original audit is in `do
 - The model is marked `unverified_dataset`. Its reported accuracy comes from a public dataset split that is not
   signer-independent. It is not real-world accuracy.
 - Closing the popup does not stop the backend camera. Use **Stop recognition** first.
+- The live preview exists only while recognition runs. It is served by the backend to this computer only.
 - Recognition works only while the local backend runs on the same computer.
 - The extension has no icon files yet, so Chrome shows a default icon.

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError, apiRequest, getCameraStatus, getLatestRecognition, startCamera, stopCamera } from './apiClient.js';
-import { API_BASE } from './config.js';
+import {
+  ApiError, apiRequest, cameraStreamUrl, getCameraStatus, getLatestRecognition, startCamera, stopCamera,
+} from './apiClient.js';
+import { API_BASE, CAMERA_CONTROL_TIMEOUT_MS } from './config.js';
 
 function jsonResponse(body, status = 200) {
   return {
@@ -9,6 +11,62 @@ function jsonResponse(body, status = 200) {
     json: async () => body,
   };
 }
+
+describe('camera control timeouts', () => {
+  it('lets a slow camera start finish instead of reporting the backend as unreachable', async () => {
+    vi.useFakeTimers();
+    try {
+      let aborted = false;
+      const fetchImpl = vi.fn((_url, { signal }) => new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          aborted = true;
+          const abort = new Error('aborted');
+          abort.name = 'AbortError';
+          reject(abort);
+        });
+        setTimeout(() => resolve(jsonResponse({ running: true })), 8000);
+      }));
+      const pending = startCamera({ fetchImpl });
+      await vi.advanceTimersByTimeAsync(7000);
+      expect(aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1500);
+      await expect(pending).resolves.toEqual({ running: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still gives up on a camera start that never answers', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn((_url, { signal }) => new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          const abort = new Error('aborted');
+          abort.name = 'AbortError';
+          reject(abort);
+        });
+      }));
+      const pending = startCamera({ fetchImpl }).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(CAMERA_CONTROL_TIMEOUT_MS + 1);
+      const error = await pending;
+      expect(error.code).toBe('backend_unreachable');
+      expect(error.message).toMatch(/did not answer/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('cameraStreamUrl', () => {
+  it('points at the existing backend MJPEG stream on the local backend only', () => {
+    expect(cameraStreamUrl(0)).toBe(`${API_BASE}/camera/stream?attempt=0`);
+    expect(cameraStreamUrl(0)).toMatch(/^http:\/\/127\.0\.0\.1:8000\/api\/camera\/stream\?/);
+  });
+
+  it('changes with the attempt number so a retry opens a fresh connection', () => {
+    expect(cameraStreamUrl(2)).not.toBe(cameraStreamUrl(1));
+  });
+});
 
 describe('apiRequest', () => {
   it('calls the documented backend address with the expected method', async () => {

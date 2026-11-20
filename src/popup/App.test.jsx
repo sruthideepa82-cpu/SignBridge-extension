@@ -78,6 +78,26 @@ describe('SignBridge popup', () => {
     expect(screen.getByText(/Confidence 88%/)).toBeInTheDocument();
   });
 
+  it('shows the confidence bar, threshold and experimental warning with a recognized letter', async () => {
+    vi.stubGlobal('fetch', fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/recognition/latest': () => jsonResponse(recognized('K', 0.88)),
+    }));
+    render(<App />);
+    const bar = await screen.findByRole('progressbar', { name: 'Recognition confidence' });
+    await waitFor(() => expect(bar).toHaveAttribute('aria-valuenow', '88'));
+    expect(screen.getByText('Threshold 70%')).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('Experimental: unverified dataset');
+  });
+
+  it('shows the supported-letters footer and the local backend address', async () => {
+    vi.stubGlobal('fetch', fakeBackend({ '/camera/status': () => jsonResponse(cameraOff) }));
+    render(<App />);
+    expect(screen.getByText(/recognises supported fingerspelled letters only/)).toBeInTheDocument();
+    expect(screen.getByText('http://127.0.0.1:8000')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Camera off')).toBeInTheDocument());
+  });
+
   it('does not show a letter for an uncertain prediction', async () => {
     vi.stubGlobal('fetch', fakeBackend({
       '/camera/status': () => jsonResponse(cameraOn),
@@ -120,6 +140,51 @@ describe('SignBridge popup', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start recognition' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/webcam could not be opened/i);
     expect(screen.getByText('Camera off')).toBeInTheDocument();
+  });
+
+  it('shows the live preview from the running camera without starting a camera session', async () => {
+    const fetchMock = fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/recognition/latest': () => jsonResponse({ status: 'no_hand', threshold: 0.7, frame_sequence: 1, experimental: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+    expect(await screen.findByRole('img', { name: 'Live webcam preview' }))
+      .toHaveAttribute('src', 'http://127.0.0.1:8000/api/camera/stream?attempt=0');
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain('http://127.0.0.1:8000/api/camera/stream?attempt=0');
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContainEqual(expect.stringContaining('/camera/start'));
+  });
+
+  it('removes the live preview when recognition is stopped', async () => {
+    vi.stubGlobal('fetch', fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/camera/stop': () => jsonResponse(cameraOff),
+      '/recognition/latest': () => jsonResponse({ status: 'no_hand', threshold: 0.7, frame_sequence: 1, experimental: true }),
+    }));
+    render(<App />);
+    expect(await screen.findByRole('img', { name: 'Live webcam preview' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop recognition' }));
+    expect(await screen.findByText('Camera off')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Live webcam preview' })).not.toBeInTheDocument();
+    expect(screen.getByText(/appears here while recognition is running/)).toBeInTheDocument();
+  });
+
+  it('does not start or stop the camera when the popup is closed or reopened', async () => {
+    const fetchMock = fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/recognition/latest': () => jsonResponse({ status: 'no_hand', threshold: 0.7, frame_sequence: 1, experimental: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const first = render(<App />);
+    expect(await screen.findByRole('img', { name: 'Live webcam preview' })).toBeInTheDocument();
+    first.unmount();
+
+    render(<App />);
+    expect(await screen.findByRole('img', { name: 'Live webcam preview' })).toBeInTheDocument();
+    const paths = fetchMock.mock.calls.map(([url]) => new URL(url).pathname);
+    expect(paths).not.toContain('/api/camera/start');
+    expect(paths).not.toContain('/api/camera/stop');
   });
 
   it('keeps Stop available for a running camera so the user can always turn it off', async () => {

@@ -52,6 +52,7 @@ export function interpretRecognition(response) {
           : `Confidence ${percent(confidence)}${threshold ? ` (above the ${threshold} threshold)` : ''}.`,
         letter: label,
         confidence,
+        threshold: typeof response.threshold === 'number' ? response.threshold : null,
         experimental,
       };
     }
@@ -63,7 +64,8 @@ export function interpretRecognition(response) {
           ? `Confidence ${percent(response.confidence)} is below the ${threshold} threshold. Nothing is shown as a letter.`
           : 'The hand is visible, but no letter is clear enough. Nothing is shown as a letter.',
         letter: null,
-        confidence: null,
+        confidence: typeof response.confidence === 'number' ? response.confidence : null,
+        threshold: typeof response.threshold === 'number' ? response.threshold : null,
         experimental,
       };
     case 'no_hand':

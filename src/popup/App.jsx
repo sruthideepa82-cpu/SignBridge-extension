@@ -1,5 +1,7 @@
 import { BACKEND_ORIGIN } from '../lib/config.js';
 import { EXPERIMENTAL_LABEL, NOT_A_TRANSLATION, interpretRecognition } from '../lib/recognition.js';
+import CameraPreview from './CameraPreview.jsx';
+import ConfidenceMeter from './ConfidenceMeter.jsx';
 import { useRecognition } from './useRecognition.js';
 
 function statusLabel(connection, cameraRunning) {
@@ -23,14 +25,15 @@ export default function App() {
         </div>
       </header>
 
-      <p className="experimental-badge" role="note">{EXPERIMENTAL_LABEL}</p>
-
-      <section className="card" aria-labelledby="status-heading">
-        <h2 id="status-heading">Recognition</h2>
-        <p className="status" data-state={offline ? 'offline' : cameraRunning ? 'on' : 'off'}>
-          <span className="status-dot" aria-hidden="true" />
-          {statusLabel(connection, cameraRunning)}
-        </p>
+      <section className="card" aria-labelledby="camera-heading">
+        <div className="card-head">
+          <h2 id="camera-heading">Live camera</h2>
+          <p className="status" data-state={offline ? 'offline' : cameraRunning ? 'on' : 'off'}>
+            <span className="status-dot" aria-hidden="true" />
+            {statusLabel(connection, cameraRunning)}
+          </p>
+        </div>
+        <CameraPreview active={cameraRunning} offline={offline} />
         <div className="controls">
           <button type="button" onClick={start} disabled={busy || cameraRunning}>
             Start recognition
@@ -44,22 +47,26 @@ export default function App() {
         )}
       </section>
 
-      <section className="card" aria-labelledby="letter-heading">
+      <section className="card result" aria-labelledby="letter-heading">
         <h2 id="letter-heading">Recognised letter</h2>
-        <div className="letter" aria-hidden="true">
-          {shown.kind === 'letter' ? shown.letter : '–'}
+        <div className="result-body">
+          <div className="letter" aria-hidden="true">
+            {shown.kind === 'letter' ? shown.letter : '–'}
+          </div>
+          <div aria-live="polite">
+            <p className="headline">{shown.headline}</p>
+            <p className="detail">{shown.detail}</p>
+          </div>
         </div>
-        <div aria-live="polite">
-          <p className="headline">{shown.headline}</p>
-          <p className="detail">{shown.detail}</p>
-        </div>
+        <ConfidenceMeter confidence={shown.confidence ?? null} threshold={shown.threshold ?? null} />
+        <p className="experimental-badge" role="note">{EXPERIMENTAL_LABEL}</p>
       </section>
 
       <footer className="footer">
         <p>{NOT_A_TRANSLATION}</p>
+        <p>The current model recognises supported fingerspelled letters only, not words or sentences.</p>
         <p>
-          The webcam runs on this computer through the local backend at{' '}
-          <code>{BACKEND_ORIGIN}</code>. Stop recognition when you finish; closing this popup does not stop the camera.
+          Local backend: <code>{BACKEND_ORIGIN}</code>. Closing this popup does not stop the camera.
         </p>
       </footer>
     </main>

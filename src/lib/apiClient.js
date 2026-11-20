@@ -1,4 +1,4 @@
-import { API_BASE, REQUEST_TIMEOUT_MS } from './config.js';
+import { API_BASE, CAMERA_CONTROL_TIMEOUT_MS, REQUEST_TIMEOUT_MS } from './config.js';
 import { messageForError } from './messages.js';
 
 export class ApiError extends Error {
@@ -47,6 +47,10 @@ export async function apiRequest(path, { method = 'GET', fetchImpl = globalThis.
 
 export const getHealth = (options) => apiRequest('/health', options);
 export const getCameraStatus = (options) => apiRequest('/camera/status', options);
-export const startCamera = (options) => apiRequest('/camera/start', { ...options, method: 'POST' });
-export const stopCamera = (options) => apiRequest('/camera/stop', { ...options, method: 'POST' });
+export const startCamera = (options) => apiRequest('/camera/start', { timeoutMs: CAMERA_CONTROL_TIMEOUT_MS, ...options, method: 'POST' });
+export const stopCamera = (options) => apiRequest('/camera/stop', { timeoutMs: CAMERA_CONTROL_TIMEOUT_MS, ...options, method: 'POST' });
 export const getLatestRecognition = (options) => apiRequest('/recognition/latest', options);
+
+// The live preview is an MJPEG stream of the frames the running camera session already produces. Opening it never
+// starts the camera. The attempt number only makes a retry request a fresh stream.
+export const cameraStreamUrl = (attempt = 0) => `${API_BASE}/camera/stream?attempt=${attempt}`;
