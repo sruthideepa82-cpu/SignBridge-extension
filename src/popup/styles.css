@@ -45,14 +45,14 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 8px 14px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 2px 2px 0;
+  padding: 0 2px;
 }
 
 .logo {
@@ -90,10 +90,51 @@ h2 {
   font-size: 12.5px;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(2, 6, 14, 0.3);
+}
+
+.tab {
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.tab:hover:not([aria-selected='true']) {
+  background: var(--glass);
+}
+
+.tab[aria-selected='true'] {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: var(--accent-ink);
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   padding: 10px;
   border: 1px solid var(--glass-border);
   border-radius: 16px;
@@ -111,14 +152,14 @@ h2 {
 
 .experimental-badge {
   margin: 0;
-  padding: 6px 10px;
+  padding: 3px 8px;
   border: 1px solid rgba(252, 211, 77, 0.55);
-  border-radius: 10px;
+  border-radius: 999px;
   background: rgba(252, 211, 77, 0.08);
   color: var(--warn);
-  font-size: 12.5px;
+  font-size: 11px;
   font-weight: 650;
-  text-align: center;
+  white-space: nowrap;
 }
 
 .status {
@@ -213,7 +254,7 @@ button:disabled {
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 2.4 / 1;
   overflow: hidden;
   border: 1px solid var(--glass-border);
   border-radius: 14px;
@@ -263,12 +304,12 @@ button:disabled {
 .letter {
   display: grid;
   place-items: center;
-  flex: 0 0 76px;
-  height: 76px;
+  flex: 0 0 64px;
+  height: 64px;
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   background: rgba(2, 6, 14, 0.35);
-  font-size: 42px;
+  font-size: 36px;
   font-weight: 800;
   line-height: 1;
   color: var(--text);
@@ -397,6 +438,7 @@ button:disabled {
   padding: 0 2px;
   color: var(--subtle);
   font-size: 11.5px;
+  line-height: 1.35;
 }
 
 .footer p {

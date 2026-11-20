@@ -23,10 +23,10 @@ describe('extension manifest', () => {
     expect(manifest.host_permissions).not.toContain('<all_urls>');
   });
 
-  it('requests only activeTab and scripting, with no camera permission and no content scripts', () => {
-    expect(manifest.permissions).toEqual(['activeTab', 'scripting']);
+  it('requests only activeTab, scripting and storage, with no camera permission and no content scripts', () => {
+    expect(manifest.permissions).toEqual(['activeTab', 'scripting', 'storage']);
     expect(manifest.permissions).not.toContain('tabs');
-    expect(manifest.permissions).not.toContain('storage');
+    expect(manifest.permissions).not.toContain('unlimitedStorage');
     expect(manifest.content_scripts).toBeUndefined();
     expect(manifest.web_accessible_resources).toBeUndefined();
   });

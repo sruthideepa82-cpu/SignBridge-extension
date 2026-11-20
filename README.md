@@ -54,7 +54,10 @@ Port 8000 is the port documented by the SignBridge backend. An earlier audit ran
 
 - `host_permissions`: `http://127.0.0.1:8000/*` only. This lets extension pages call the backend without changing the
   backend's CORS settings.
-- `permissions`: `activeTab` and `scripting`, and nothing else.
+- `permissions`: `activeTab`, `scripting` and `storage`, and nothing else.
+  - `storage` keeps the composed message in `chrome.storage.session` while the popup is closed and reopened. This
+    storage lives in memory only, is cleared when the browser closes, and is never written to disk or synced. No
+    `storage.local` or `storage.sync` is used.
   - `scripting` runs one small function in the page, and only when the user presses **Insert into page**.
   - `activeTab` limits that to the tab the user is looking at, and only after the user invokes SignBridge.
   - No content scripts, no `<all_urls>`, no access to other websites, no camera permission, no `tabs` or `storage`.
@@ -111,7 +114,9 @@ Architecture details are in `docs/ARCHITECTURE.md`. The original audit is in `do
   signer-independent. It is not real-world accuracy.
 - Closing the popup does not stop the backend camera. Use **Stop recognition** first.
 - The live preview exists only while recognition runs. It is served by the backend to this computer only.
-- The message is kept only while the popup is open. Closing the popup clears it.
-- The popup scrolls inside Chrome's 600 px limit. Its content is taller than that now that the composer is included.
+- The message is kept for the current browser session (`chrome.storage.session`). It is cleared when the browser closes.
+- The popup has two tabs, **Live** and **Message**. Both tabs stay loaded, so switching does not restart the camera,
+  recognition polling or letter accumulation. The Live tab is 598 px tall and the Message tab 448 px, within Chrome's
+  600 px popup limit.
 - Recognition works only while the local backend runs on the same computer.
 - The extension has no icon files yet, so Chrome shows a default icon.

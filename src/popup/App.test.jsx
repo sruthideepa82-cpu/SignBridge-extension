@@ -190,6 +190,7 @@ describe('SignBridge popup', () => {
   it('renders the message composer with its actions disabled until there is text', async () => {
     vi.stubGlobal('fetch', fakeBackend({ '/camera/status': () => jsonResponse(cameraOff) }));
     render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Message' }));
     expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Insert into page' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Speak' })).toBeDisabled();
@@ -208,7 +209,48 @@ describe('SignBridge popup', () => {
       },
     }));
     render(<App />);
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('R'), { timeout: 5000 });
+    await waitFor(() => expect(
+      screen.getByRole('textbox', { name: 'Message', hidden: true }),
+    ).toHaveValue('R'), { timeout: 5000 });
+    fireEvent.click(screen.getByRole('tab', { name: 'Message' }));
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('R');
+  });
+
+  it('shows the Live tab first and switches panels without unmounting them', async () => {
+    vi.stubGlobal('fetch', fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/recognition/latest': () => jsonResponse({ status: 'no_hand', threshold: 0.7, frame_sequence: 1, experimental: true }),
+    }));
+    render(<App />);
+    expect(screen.getByRole('tab', { name: 'Live' })).toHaveAttribute('aria-selected', 'true');
+    const image = await screen.findByRole('img', { name: 'Live webcam preview' });
+    expect(screen.getByRole('tabpanel', { name: 'Live' })).toBeVisible();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Message' }));
+    expect(screen.getByRole('tab', { name: 'Message' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel', { name: 'Message' })).toBeVisible();
+    expect(document.getElementById('panel-live')).not.toBeVisible();
+    expect(screen.getByRole('img', { name: 'Live webcam preview', hidden: true })).toBe(image);
+    expect(screen.getByText('Camera on')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Live' }));
+    expect(screen.getByRole('img', { name: 'Live webcam preview' })).toBe(image);
+  });
+
+  it('moves between tabs with the arrow and Home/End keys', () => {
+    vi.stubGlobal('fetch', fakeBackend({ '/camera/status': () => jsonResponse(cameraOff) }));
+    render(<App />);
+    const live = screen.getByRole('tab', { name: 'Live' });
+    live.focus();
+    fireEvent.keyDown(live, { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Message' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Message' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Message' }), { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Live' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Live' }), { key: 'End' });
+    expect(screen.getByRole('tab', { name: 'Message' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Message' }), { key: 'Home' });
+    expect(screen.getByRole('tab', { name: 'Live' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('keeps Stop available for a running camera so the user can always turn it off', async () => {

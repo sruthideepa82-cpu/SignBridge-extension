@@ -23,7 +23,7 @@ afterEach(() => {
   delete document.execCommand;
 });
 
-describe('insertIntoFocusedField', () => {
+describe('insertIntoFocusedField (runs inside the page)', () => {
   it('inserts at the caret of a text input and keeps the existing text', () => {
     const input = focused(Object.assign(document.createElement('input'), { type: 'text', value: 'Hello world' }));
     input.setSelectionRange(5, 5);
@@ -48,7 +48,7 @@ describe('insertIntoFocusedField', () => {
     expect(area.selectionStart).toBe(3);
   });
 
-  it('inserts into a contenteditable area through execCommand and places the caret at the end when outside', () => {
+  it('inserts into a contenteditable area through execCommand', () => {
     focusedEditable('Draft');
     document.execCommand = vi.fn(() => true);
 
@@ -119,49 +119,104 @@ describe('insertIntoFocusedField', () => {
   });
 });
 
-describe('insertTextIntoActiveTab', () => {
-  function fakeChrome({ tabs = [{ id: 7 }], execute, queryError } = {}) {
-    return {
-      tabs: {
-        query: vi.fn(async () => {
-          if (queryError) throw queryError;
-          return tabs;
-        }),
-      },
-      scripting: {
-        executeScript: execute ?? vi.fn(async () => [{ result: { ok: true, reason: null, kind: 'input', length: 1 } }]),
-      },
-    };
-  }
+// Chrome's injection path, simulated: the mock runs the real page function on a real element, as Chrome would.
+function chromeWithPage({ tabs = [{ id: 7 }], execute, queryError } = {}) {
+  return {
+    tabs: {
+      query: vi.fn(async () => {
+        if (queryError) throw queryError;
+        return tabs;
+      }),
+    },
+    scripting: {
+      executeScript: execute ?? vi.fn(async ({ func, args }) => [{ result: func(...args) }]),
+    },
+  };
+}
 
-  it('injects the page function into the active tab with the text as its argument', async () => {
-    const chromeApi = fakeChrome();
-    const result = await insertTextIntoActiveTab('HI', chromeApi);
+describe('insertTextIntoActiveTab (popup side)', () => {
+  it('inserts into an input on an ordinary webpage through the injected function', async () => {
+    const input = focused(Object.assign(document.createElement('input'), { type: 'text', value: 'Hi ' }));
+    input.setSelectionRange(3, 3);
+    const chromeApi = chromeWithPage();
+
+    const result = await insertTextIntoActiveTab('there', chromeApi);
+
     expect(chromeApi.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
     expect(chromeApi.scripting.executeScript).toHaveBeenCalledWith({
       target: { tabId: 7 },
       func: insertIntoFocusedField,
-      args: ['HI'],
+      args: ['there'],
     });
-    expect(result).toMatchObject({ ok: true });
+    expect(result).toMatchObject({ ok: true, kind: 'input' });
+    expect(input.value).toBe('Hi there');
   });
 
-  it('reports a blocked page when Chrome refuses to run the script there', async () => {
-    const chromeApi = fakeChrome({
-      execute: vi.fn(async () => { throw new Error('Cannot access contents of the page.'); }),
-    });
-    await expect(insertTextIntoActiveTab('HI', chromeApi)).resolves.toEqual({ ok: false, reason: 'blocked' });
+  it('inserts into a textarea on an ordinary webpage through the injected function', async () => {
+    const area = focused(Object.assign(document.createElement('textarea'), { value: 'Note: ' }));
+    area.setSelectionRange(6, 6);
+    const result = await insertTextIntoActiveTab('OK', chromeWithPage());
+    expect(result).toMatchObject({ ok: true, kind: 'textarea' });
+    expect(area.value).toBe('Note: OK');
   });
 
-  it('reports when there is no active tab', async () => {
-    await expect(insertTextIntoActiveTab('HI', fakeChrome({ tabs: [] }))).resolves.toEqual({ ok: false, reason: 'no_tab' });
+  it('reports api_missing with the missing permission when chrome.scripting is absent', async () => {
+    const chromeApi = { tabs: { query: vi.fn(async () => [{ id: 7 }]) } };
+    const result = await insertTextIntoActiveTab('HI', chromeApi);
+    expect(result).toEqual({ ok: false, reason: 'api_missing', detail: 'scripting' });
+    expect(describeInsertion(result).message).toMatch(/Reload on SignBridge/);
   });
 
-  it('does not touch the page for empty text or when the API is unavailable', async () => {
-    const chromeApi = fakeChrome();
+  it('reports api_missing when chrome.tabs is absent', async () => {
+    const result = await insertTextIntoActiveTab('HI', { scripting: { executeScript: vi.fn() } });
+    expect(result).toEqual({ ok: false, reason: 'api_missing', detail: 'tabs' });
+  });
+
+  it('reports restricted_page for chrome:// and Chrome Web Store pages', async () => {
+    const restricted = [
+      'Cannot access a chrome:// URL',
+      'Cannot access contents of url "https://chromewebstore.google.com/detail/x". Extension manifest must request permission',
+    ];
+    for (const message of restricted) {
+      const chromeApi = chromeWithPage({ execute: vi.fn(async () => { throw new Error(message); }) });
+      const result = await insertTextIntoActiveTab('HI', chromeApi);
+      expect(result.reason).toBe('restricted_page');
+      expect(result.detail).toBe(message);
+      expect(describeInsertion(result).message).toMatch(/Open a normal website/);
+    }
+  });
+
+  it('reports no_access, with a next step, when activeTab has not been granted to the tab', async () => {
+    const message = 'Cannot access contents of the page. Extension manifest must request permission to access the respective host.';
+    const chromeApi = chromeWithPage({ execute: vi.fn(async () => { throw new Error(message); }) });
+    const result = await insertTextIntoActiveTab('HI', chromeApi);
+    expect(result).toEqual({ ok: false, reason: 'no_access', detail: message });
+    expect(describeInsertion(result).message).toMatch(/click the SignBridge toolbar icon/i);
+  });
+
+  it('keeps Chrome\'s error text for an unexpected failure instead of guessing', async () => {
+    const chromeApi = chromeWithPage({ execute: vi.fn(async () => { throw new Error('Something new'); }) });
+    const result = await insertTextIntoActiveTab('HI', chromeApi);
+    expect(result).toEqual({ ok: false, reason: 'error', detail: 'Something new' });
+    expect(describeInsertion(result).message).toMatch(/Something new/);
+  });
+
+  it('reports an error when the injected function returns no result', async () => {
+    const chromeApi = chromeWithPage({ execute: vi.fn(async () => []) });
+    const result = await insertTextIntoActiveTab('HI', chromeApi);
+    expect(result.reason).toBe('error');
+  });
+
+  it('reports no_tab when there is no active tab, and error when tab lookup fails', async () => {
+    await expect(insertTextIntoActiveTab('HI', chromeWithPage({ tabs: [] }))).resolves.toEqual({ ok: false, reason: 'no_tab' });
+    const failing = await insertTextIntoActiveTab('HI', chromeWithPage({ queryError: new Error('boom') }));
+    expect(failing).toEqual({ ok: false, reason: 'error', detail: 'boom' });
+  });
+
+  it('does not touch the page for empty text', async () => {
+    const chromeApi = chromeWithPage();
     await expect(insertTextIntoActiveTab('', chromeApi)).resolves.toEqual({ ok: false, reason: 'empty' });
     expect(chromeApi.scripting.executeScript).not.toHaveBeenCalled();
-    await expect(insertTextIntoActiveTab('HI', undefined)).resolves.toEqual({ ok: false, reason: 'unsupported' });
   });
 });
 
@@ -173,11 +228,20 @@ describe('describeInsertion', () => {
     expect(message.message).toMatch(/Nothing was sent or submitted/);
   });
 
-  it('explains each failure with a next step', () => {
+  it('gives a next step for each known failure', () => {
     expect(describeInsertion({ ok: false, reason: 'no_focus' }).message).toMatch(/Click a text box/);
     expect(describeInsertion({ ok: false, reason: 'unsupported_field' }).message).toMatch(/cannot take inserted text/);
-    expect(describeInsertion({ ok: false, reason: 'blocked' }).message).toMatch(/chrome:\/\//);
-    expect(describeInsertion({ ok: false, reason: 'mystery' }).message).toMatch(/could not be inserted/);
-    expect(describeInsertion({ ok: false, reason: 'blocked' }).tone).toBe('error');
+    expect(describeInsertion({ ok: false, reason: 'api_missing', detail: 'scripting' }).message).toMatch(/scripting/);
+    expect(describeInsertion({ ok: false, reason: 'restricted_page' }).message).toMatch(/chrome:\/\//);
+    expect(describeInsertion({ ok: false, reason: 'no_access' }).message).toMatch(/toolbar icon/);
+    expect(describeInsertion({ ok: false, reason: 'no_tab' }).message).toMatch(/No active browser tab/);
+    expect(describeInsertion({ ok: false, reason: 'error', detail: 'x' }).message).toMatch(/: x/);
+    expect(describeInsertion({ ok: false, reason: 'error', detail: 'x' }).tone).toBe('error');
+  });
+
+  it('never shows the old generic "not available in this browser" message', () => {
+    for (const reason of ['api_missing', 'restricted_page', 'no_access', 'error', 'unknown_reason']) {
+      expect(describeInsertion({ ok: false, reason }).message).not.toMatch(/not available in this browser/);
+    }
   });
 });

@@ -7,7 +7,7 @@ export default function Composer({ composer }) {
     <section className="card composer" aria-labelledby="composer-heading">
       <div className="card-head">
         <h2 id="composer-heading">Message</h2>
-        <p className="composer-count">{Array.from(text).length} characters</p>
+        <p className="composer-count">{Array.from(text).length} {Array.from(text).length === 1 ? 'character' : 'characters'}</p>
       </div>
       <textarea
         aria-labelledby="composer-heading"

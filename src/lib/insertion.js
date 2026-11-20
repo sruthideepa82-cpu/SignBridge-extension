@@ -54,19 +54,26 @@ export function insertIntoFocusedField(text) {
   return { ok: false, reason: 'unsupported_field' };
 }
 
+// Chrome's own error messages for executeScript. They are matched by text because Chrome has no error codes for these.
+const RESTRICTED_PAGE = /chrome:\/\/|chrome-extension:\/\/|edge:\/\/|about:|chromewebstore|chrome\.google\.com\/webstore|Cannot access a chrome/i;
+const NO_TAB_ACCESS = /Cannot access contents of|must request permission|Cannot access/i;
+
 // Runs insertIntoFocusedField on the tab the user is looking at. The activeTab permission covers only that tab, and
-// only after the user has invoked SignBridge. Pages Chrome does not allow extensions to change make executeScript throw.
+// only after the user has invoked SignBridge. Every failure returns a specific reason and Chrome's own error text
+// (detail), so the popup can say what to do and a developer can see the real cause.
 export async function insertTextIntoActiveTab(text, chromeApi = globalThis.chrome) {
   if (!text) return { ok: false, reason: 'empty' };
-  if (!chromeApi?.tabs?.query || !chromeApi?.scripting?.executeScript) {
-    return { ok: false, reason: 'unsupported' };
-  }
+
+  const missing = [];
+  if (typeof chromeApi?.tabs?.query !== 'function') missing.push('tabs');
+  if (typeof chromeApi?.scripting?.executeScript !== 'function') missing.push('scripting');
+  if (missing.length) return { ok: false, reason: 'api_missing', detail: missing.join(', ') };
 
   let tab;
   try {
     [tab] = await chromeApi.tabs.query({ active: true, currentWindow: true });
-  } catch {
-    return { ok: false, reason: 'error' };
+  } catch (error) {
+    return { ok: false, reason: 'error', detail: errorText(error) };
   }
   if (!tab?.id) return { ok: false, reason: 'no_tab' };
 
@@ -77,10 +84,20 @@ export async function insertTextIntoActiveTab(text, chromeApi = globalThis.chrom
       func: insertIntoFocusedField,
       args: [text],
     });
-  } catch {
-    return { ok: false, reason: 'blocked' };
+  } catch (error) {
+    const detail = errorText(error);
+    if (RESTRICTED_PAGE.test(detail)) return { ok: false, reason: 'restricted_page', detail };
+    if (NO_TAB_ACCESS.test(detail)) return { ok: false, reason: 'no_access', detail };
+    return { ok: false, reason: 'error', detail };
   }
-  return results?.[0]?.result ?? { ok: false, reason: 'error' };
+
+  const result = results?.[0]?.result;
+  if (!result || typeof result !== 'object') return { ok: false, reason: 'error', detail: 'The page returned no result.' };
+  return result;
+}
+
+function errorText(error) {
+  return String(error?.message ?? error ?? 'unknown error');
 }
 
 // Plain-language feedback for each result, so the popup can say what to do next.
@@ -92,9 +109,11 @@ export function describeInsertion(result) {
     empty: 'There is no text to insert yet.',
     no_focus: 'Click a text box on the website first, then press Insert into page again.',
     unsupported_field: 'This field cannot take inserted text. Click a normal text box, text area or editable area.',
-    no_tab: 'No active browser tab was found.',
-    blocked: 'SignBridge cannot write to this page. Chrome does not allow extensions on pages such as chrome:// pages or the Chrome Web Store. Open the website, click SignBridge on that tab, then try again.',
-    unsupported: 'Inserting text is not available in this browser.',
+    no_tab: 'No active browser tab was found. Click the website you want to type into, then try again.',
+    api_missing: `SignBridge is missing a Chrome permission it needs (${result?.detail ?? 'scripting'}). Open chrome://extensions, click Reload on SignBridge, then reopen this popup.`,
+    restricted_page: 'Chrome does not let extensions change this page (chrome://, extension and Chrome Web Store pages). Open a normal website, click into a text box there, and try again.',
+    no_access: 'SignBridge has no access to this tab yet. Chrome grants access only after you click the SignBridge toolbar icon while this website tab is open. Click the icon on this tab, then press Insert into page again.',
+    error: `Chrome could not insert the text${result?.detail ? `: ${result.detail}` : '.'}`,
   };
   return { tone: 'error', message: messages[result?.reason] ?? 'Text could not be inserted. Try again.' };
 }
