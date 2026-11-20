@@ -53,7 +53,7 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
         if (cancelled) return;
         setConnection('online');
         setError(null);
-        setResult(interpretRecognition(response));
+        setResult({ ...interpretRecognition(response), sequence: response.frame_sequence ?? null });
       } catch (err) {
         if (cancelled) return;
         setConnection(err.code === 'backend_unreachable' ? 'offline' : 'online');

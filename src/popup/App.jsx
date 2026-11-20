@@ -1,7 +1,9 @@
 import { BACKEND_ORIGIN } from '../lib/config.js';
 import { EXPERIMENTAL_LABEL, NOT_A_TRANSLATION, interpretRecognition } from '../lib/recognition.js';
 import CameraPreview from './CameraPreview.jsx';
+import Composer from './Composer.jsx';
 import ConfidenceMeter from './ConfidenceMeter.jsx';
+import { useComposer } from './useComposer.js';
 import { useRecognition } from './useRecognition.js';
 
 function statusLabel(connection, cameraRunning) {
@@ -14,6 +16,12 @@ export default function App() {
   const { connection, cameraRunning, busy, error, result, start, stop } = useRecognition();
   const shown = result ?? interpretRecognition({ status: 'camera_off' });
   const offline = connection === 'offline';
+  const composer = useComposer({
+    observation: {
+      letter: shown.kind === 'letter' ? shown.letter : null,
+      sequence: result?.sequence ?? null,
+    },
+  });
 
   return (
     <main className="popup">
@@ -61,6 +69,8 @@ export default function App() {
         <ConfidenceMeter confidence={shown.confidence ?? null} threshold={shown.threshold ?? null} />
         <p className="experimental-badge" role="note">{EXPERIMENTAL_LABEL}</p>
       </section>
+
+      <Composer composer={composer} />
 
       <footer className="footer">
         <p>{NOT_A_TRANSLATION}</p>

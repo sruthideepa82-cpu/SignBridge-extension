@@ -187,6 +187,30 @@ describe('SignBridge popup', () => {
     expect(paths).not.toContain('/api/camera/stop');
   });
 
+  it('renders the message composer with its actions disabled until there is text', async () => {
+    vi.stubGlobal('fetch', fakeBackend({ '/camera/status': () => jsonResponse(cameraOff) }));
+    render(<App />);
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Insert into page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Speak' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stop speaking' })).toBeDisabled();
+    await waitFor(() => expect(screen.getByText('Camera off')).toBeInTheDocument());
+  });
+
+  it('adds a stable recognised letter to the message from the live backend results', async () => {
+    let sequence = 0;
+    vi.stubGlobal('fetch', fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/recognition/latest': () => {
+        sequence += 1;
+        return jsonResponse({ ...recognized('R'), frame_sequence: sequence });
+      },
+    }));
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('R'), { timeout: 5000 });
+  });
+
   it('keeps Stop available for a running camera so the user can always turn it off', async () => {
     vi.stubGlobal('fetch', fakeBackend({
       '/camera/status': () => jsonResponse(cameraOn),

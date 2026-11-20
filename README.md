@@ -18,6 +18,15 @@ backend and its AI engine are not copied here.
 - Glassmorphism popup (360 px wide, fits Chrome's 600 px popup height): the live camera card with status and
   Start/Stop, the recognised letter with a confidence bar and threshold marker, the experimental warning, and a footer.
 - Starting or stopping the camera waits up to 20 seconds, because opening the webcam can take several seconds.
+- Message composer (Day 2):
+  - A recognised letter is added only after it is stable: the same letter in 6 distinct frames in a row, at least 1
+    second after the previous letter (`COMPOSER_STABLE_FRAMES` and `COMPOSER_COOLDOWN_MS` in `src/lib/config.js`).
+  - Holding a letter adds it once. The same letter is added again only after the hand shows no letter or a different one.
+  - Space, Backspace and Clear edit the message. You can also type in the message box. Recognition only appends letters.
+  - **Copy** uses the Clipboard API. **Speak** and **Stop speaking** use SpeechSynthesis, and only after a click.
+  - **Insert into page** writes into the focused text box, text area or editable area of the active tab. It keeps the
+    existing text, puts the caret after the new text, and fires an input event. It never presses Enter, submits a form
+    or sends a message. Password fields, read-only fields and iframes are not supported.
 - Shows plain-language errors for an unreachable backend, a camera that will not open, a missing model, and timeouts.
 - Not yet built: floating widget, text composer, text-to-speech, copy and insert. These are planned for later days.
 
@@ -45,7 +54,11 @@ Port 8000 is the port documented by the SignBridge backend. An earlier audit ran
 
 - `host_permissions`: `http://127.0.0.1:8000/*` only. This lets extension pages call the backend without changing the
   backend's CORS settings.
-- No `permissions` entries, no content scripts, no access to other websites, no camera permission.
+- `permissions`: `activeTab` and `scripting`, and nothing else.
+  - `scripting` runs one small function in the page, and only when the user presses **Insert into page**.
+  - `activeTab` limits that to the tab the user is looking at, and only after the user invokes SignBridge.
+  - No content scripts, no `<all_urls>`, no access to other websites, no camera permission, no `tabs` or `storage`.
+  - A content script was not used because it would have to run on every page all the time.
 
 ## Install and run
 
@@ -98,5 +111,7 @@ Architecture details are in `docs/ARCHITECTURE.md`. The original audit is in `do
   signer-independent. It is not real-world accuracy.
 - Closing the popup does not stop the backend camera. Use **Stop recognition** first.
 - The live preview exists only while recognition runs. It is served by the backend to this computer only.
+- The message is kept only while the popup is open. Closing the popup clears it.
+- The popup scrolls inside Chrome's 600 px limit. Its content is taller than that now that the composer is included.
 - Recognition works only while the local backend runs on the same computer.
 - The extension has no icon files yet, so Chrome shows a default icon.
