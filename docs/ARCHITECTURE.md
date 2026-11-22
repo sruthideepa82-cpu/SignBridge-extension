@@ -1,17 +1,18 @@
 # SignBridge Extension: architecture
 
-Status: Day 1–2 signing features and Phase 1 meeting captions implemented. Meeting captions are **experimental** and
-have not been verified with a real Google Meet call. No AI model, backend endpoint or recognition rule was changed.
+Status: Day 1–2 signing features, Phase 1 Live Communication captions and the lavender glass UI are implemented.
+Live Communication is **experimental** and has not been verified with a real meeting call on any platform. No AI model,
+backend endpoint or recognition rule was changed.
 
 ## 1. Components
 
 ```
 Chrome or Edge (Manifest V3)
   Popup (popup.html, React)
-    src/popup/App.jsx             Live / Message / Meet tabs
+    src/popup/App.jsx             Live / Message / Live Communication tabs
     src/popup/useRecognition.js   Camera status, 200 ms polling (Day 1–2)
     src/popup/useComposer.js      Stable-letter composer (Day 2)
-    src/popup/MeetPanel.jsx       Consent + start/stop meeting captions
+    src/popup/MeetPanel.jsx       Live Communication consent + start/stop
     src/lib/apiClient.js          Backend HTTP client (Day 1–2)
 
   Background service worker (src/background.js)
@@ -39,8 +40,8 @@ Local SignBridge backend (127.0.0.1:8000, unchanged)
   /api/transcription/live → Gemini Live                        (captions)
 ```
 
-There is no content script and no Meet DOM injection. The captions window is a separate window, chosen over Document
-Picture-in-Picture for Phase 1.
+There is no content script and no meeting-site DOM injection. The captions window is a separate window, chosen over
+Document Picture-in-Picture for Phase 1.
 
 ## 2. Signing contract (unchanged)
 
@@ -56,7 +57,7 @@ Recognition display rules are unchanged: a letter is shown only for `recognized`
 carries the experimental label, and `uncertain`, `no_hand`, `two_hands`, `camera_off` and `no_model` never show a
 letter. The camera belongs to the backend; the extension never calls `getUserMedia` for video.
 
-## 3. Meeting captions pipeline
+## 3. Live Communication pipeline
 
 ```mermaid
 sequenceDiagram
@@ -68,7 +69,7 @@ sequenceDiagram
   participant G as Gemini Live
   participant C as Captions window
 
-  U->>P: Invoke extension on Meet tab, consent, Start
+  U->>P: Invoke extension on the tab, consent, Start
   P->>SW: meeting.start {tabId,title,url}
   SW->>B: GET /api/transcription/status
   SW->>SW: chrome.tabCapture.getMediaStreamId({targetTabId})
@@ -145,7 +146,7 @@ filter on `target`.
   (`stream_id_timeout`, `backend_down`, `offscreen_failed`, `window_create_failed`, `capture_timeout`, …).
 - **Start diagnostics** are stored in service-worker memory and exposed through `meeting.diagnostics` as
   `{stage, reason, detail, ok, at}`. The popup shows the category and appends the technical detail. The worker logs one
-  `[SignBridge startup]` line with no audio, transcript, tab title or meeting URL.
+  `[SignBridge startup]` line with no audio, transcript, tab title or page URL.
 - **Failure cleanup** closes the captions window created by that attempt, stops/closes the offscreen document, clears
   the session and resets `starting`, so a retry works without restarting Chrome. A reused pre-existing captions window
   is kept open and told that startup failed.
@@ -202,7 +203,7 @@ The backend owns the webcam. Google Meet also needs the same device when its cam
 Therefore the MVP policy is: **Google Meet camera OFF while SignBridge camera is ON**. The extension never opens a
 second camera session and never tries to share Meet's stream.
 
-Meeting captions use audio only and do not conflict with the camera.
+Live Communication uses audio only and does not conflict with the camera.
 
 ## 8. Build and tests
 
@@ -214,15 +215,15 @@ Multi-entry Vite build:
 - React/UI code is hashed under `dist/assets/`.
 
 Tests (Vitest + jsdom) cover the manifest/permissions/pinned ID, Day 1–2 behaviour, PCM, protocol, transport,
-caption state, the popup panel and the captions window. The manual Meet matrix is in
-`docs/MEETING_MODE_TEST_MATRIX.md`.
+caption state, the Live Communication panel and the captions window. The manual platform matrix is in
+`docs/MEETING_MODE_TEST_MATRIX.md`; the UI design system is in `docs/UI_DESIGN.md`.
 
 ## 9. Known limits
 
 - Single fingerspelled letters only; the model is unverified.
-- Meeting captions have not been tested with Google Meet or real remote participant audio.
+- Live Communication has not been tested with a real meeting platform or real remote participant audio.
 - The backend must run locally; captions require Gemini access.
 - Audio comes only from the selected tab. Tab mute does not silence capture, so the visible indicator is essential.
 - No chat insertion, no overlay, no PiP in Phase 1.
 - The transcript is in memory only and ends with the session.
-- The camera cannot be shared usefully with Meet; Meet video stays off during signing.
+- The camera cannot be shared usefully with a meeting app; the meeting camera stays off during signing.

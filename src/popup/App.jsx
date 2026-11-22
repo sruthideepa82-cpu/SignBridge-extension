@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { BACKEND_ORIGIN } from '../lib/config.js';
 import { EXPERIMENTAL_LABEL, NOT_A_TRANSLATION, interpretRecognition } from '../lib/recognition.js';
+import { BroadcastIcon, CameraIcon, MessageIcon, PlayIcon, StopIcon } from '../ui/icons.jsx';
 import CameraPreview from './CameraPreview.jsx';
 import Composer from './Composer.jsx';
 import ConfidenceMeter from './ConfidenceMeter.jsx';
@@ -9,15 +10,21 @@ import { useComposer } from './useComposer.js';
 import { useRecognition } from './useRecognition.js';
 
 const TABS = [
-  { id: 'live', label: 'Live' },
-  { id: 'message', label: 'Message' },
-  { id: 'meet', label: 'Meet' },
+  { id: 'live', label: 'Live', Icon: CameraIcon },
+  { id: 'message', label: 'Message', Icon: MessageIcon },
+  { id: 'communication', label: 'Live Communication', Icon: BroadcastIcon },
 ];
 
 function statusLabel(connection, cameraRunning) {
   if (connection === 'checking') return 'Checking SignBridge';
   if (connection === 'offline') return 'SignBridge not reachable';
   return cameraRunning ? 'Camera on' : 'Camera off';
+}
+
+function backendLabel(connection) {
+  if (connection === 'checking') return 'Checking';
+  if (connection === 'offline') return 'Offline';
+  return 'Local';
 }
 
 export default function App() {
@@ -33,8 +40,8 @@ export default function App() {
   const [tab, setTab] = useState('live');
   const tabRefs = useRef({});
 
-  // All panels stay mounted. Switching tabs only hides one, so the camera preview, recognition polling, composer and
-  // meeting controls keep running and keep their state.
+  // All panels stay mounted. Switching tabs only hides one, so recognition, the preview, the composer and caption
+  // controls keep running and keep their state.
   const selectTab = (id) => {
     setTab(id);
     tabRefs.current[id]?.focus();
@@ -54,87 +61,135 @@ export default function App() {
   };
 
   return (
-    <main className="popup">
-      <header className="brand">
-        <div className="logo" aria-hidden="true">SB</div>
-        <div>
-          <h1>SignBridge</h1>
-          <p className="tagline">Accessibility first. Communication for everyone.</p>
+    <main className="popup app-shell">
+      <div className="ambient-layer" aria-hidden="true">
+        <div className="ambient ambient-one" />
+        <div className="ambient ambient-two" />
+      </div>
+
+      <header className="app-header">
+        <div className="brand">
+          <div className="logo" aria-hidden="true">
+            <span>SB</span>
+            <i className="logo-spark" />
+          </div>
+          <div className="brand-copy">
+            <h1>SignBridge</h1>
+            <p>Accessibility, connected.</p>
+          </div>
         </div>
+        <p className="backend-pill" data-state={offline ? 'offline' : connection === 'checking' ? 'checking' : 'online'}>
+          <span className="status-dot" aria-hidden="true" />
+          {backendLabel(connection)}
+        </p>
       </header>
 
       <div className="tabs" role="tablist" aria-label="SignBridge sections" onKeyDown={onTabKeyDown}>
-        {TABS.map((item) => (
+        {TABS.map(({ id, label, Icon }) => (
           <button
-            key={item.id}
-            ref={(node) => { tabRefs.current[item.id] = node; }}
+            key={id}
+            ref={(node) => { tabRefs.current[id] = node; }}
             type="button"
             role="tab"
-            id={`tab-${item.id}`}
-            aria-selected={tab === item.id}
-            aria-controls={`panel-${item.id}`}
-            tabIndex={tab === item.id ? 0 : -1}
+            id={`tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls={`panel-${id}`}
+            tabIndex={tab === id ? 0 : -1}
             className="tab"
-            onClick={() => selectTab(item.id)}
+            data-active={tab === id ? 'yes' : 'no'}
+            onClick={() => selectTab(id)}
           >
-            {item.label}
+            <Icon size={16} />
+            <span>{label}</span>
           </button>
         ))}
       </div>
 
       <div className="panel" role="tabpanel" id="panel-live" aria-labelledby="tab-live" hidden={tab !== 'live'}>
-        <section className="card" aria-labelledby="camera-heading">
-          <div className="card-head">
-            <h2 id="camera-heading">Live camera</h2>
-            <p className="status" data-state={offline ? 'offline' : cameraRunning ? 'on' : 'off'}>
-              <span className="status-dot" aria-hidden="true" />
-              {statusLabel(connection, cameraRunning)}
+        <div className="panel-stack">
+          <section className="card camera-card" aria-labelledby="camera-heading">
+            <div className="card-head">
+              <div>
+                <p className="eyebrow">Live recognition</p>
+                <h2 id="camera-heading">Camera</h2>
+              </div>
+              <p className="status" data-state={offline ? 'offline' : cameraRunning ? 'on' : 'off'}>
+                <span className="status-dot" aria-hidden="true" />
+                {statusLabel(connection, cameraRunning)}
+              </p>
+            </div>
+
+            <div className="camera-stage">
+              <CameraPreview active={cameraRunning} offline={offline} />
+              {cameraRunning && !offline && (
+                <span className="live-chip">
+                  <span aria-hidden="true" />
+                  Live
+                </span>
+              )}
+            </div>
+
+            <div className="control-row">
+              <button type="button" className="button primary" onClick={start} disabled={busy || cameraRunning}>
+                <PlayIcon size={16} />
+                Start recognition
+              </button>
+              <button type="button" className="button ghost" onClick={stop} disabled={busy || !cameraRunning}>
+                <StopIcon size={15} />
+                Stop recognition
+              </button>
+            </div>
+
+            {error && <p className="error inline-alert" role="alert">{error}</p>}
+          </section>
+
+          <section className="card result-card" aria-labelledby="letter-heading">
+            <div className="result-head">
+              <div>
+                <p className="eyebrow">Recognition</p>
+                <h2 id="letter-heading">Recognised letter</h2>
+              </div>
+              <p className="experimental-badge" role="note">{EXPERIMENTAL_LABEL}</p>
+            </div>
+
+            <div className="result-main">
+              <div className="letter-frame" data-active={shown.kind === 'letter' ? 'yes' : 'no'}>
+                <div className="letter" key={shown.kind === 'letter' ? shown.letter : 'empty'}>
+                  {shown.kind === 'letter' ? shown.letter : '–'}
+                </div>
+              </div>
+              <div className="result-copy" aria-live="polite">
+                <p className="headline">{shown.headline}</p>
+                <p className="detail">{shown.detail}</p>
+              </div>
+            </div>
+
+            <ConfidenceMeter confidence={shown.confidence ?? null} threshold={shown.threshold ?? null} />
+
+            <p className="recognition-hint">
+              <span className="hint-spark" aria-hidden="true">✦</span>
+              Hold one hand steady, palm toward the camera, in good light.
             </p>
-          </div>
-          <CameraPreview active={cameraRunning} offline={offline} />
-          <div className="controls">
-            <button type="button" onClick={start} disabled={busy || cameraRunning}>
-              Start recognition
-            </button>
-            <button type="button" className="secondary" onClick={stop} disabled={busy || !cameraRunning}>
-              Stop recognition
-            </button>
-          </div>
-          {error && (
-            <p className="error" role="alert">{error}</p>
-          )}
-        </section>
+          </section>
 
-        <section className="card result" aria-labelledby="letter-heading">
-          <div className="card-head">
-            <h2 id="letter-heading">Recognised letter</h2>
-            <p className="experimental-badge" role="note">{EXPERIMENTAL_LABEL}</p>
-          </div>
-          <div className="result-body">
-            <div className="letter" aria-hidden="true">
-              {shown.kind === 'letter' ? shown.letter : '–'}
-            </div>
-            <div aria-live="polite">
-              <p className="headline">{shown.headline}</p>
-              <p className="detail">{shown.detail}</p>
-            </div>
-          </div>
-          <ConfidenceMeter confidence={shown.confidence ?? null} threshold={shown.threshold ?? null} />
-        </section>
-
-        <footer className="footer">
-          <p>{NOT_A_TRANSLATION} The current model recognises supported fingerspelled letters only.</p>
-          <p>
-            Local backend: <code>{BACKEND_ORIGIN}</code>. Closing this popup does not stop the camera.
-          </p>
-        </footer>
+          <footer className="footer">
+            <p>{NOT_A_TRANSLATION} The model recognises supported fingerspelled letters only.</p>
+            <p>Local backend: <code>{BACKEND_ORIGIN}</code></p>
+          </footer>
+        </div>
       </div>
 
       <div className="panel" role="tabpanel" id="panel-message" aria-labelledby="tab-message" hidden={tab !== 'message'}>
         <Composer composer={composer} />
       </div>
 
-      <div className="panel" role="tabpanel" id="panel-meet" aria-labelledby="tab-meet" hidden={tab !== 'meet'}>
+      <div
+        className="panel"
+        role="tabpanel"
+        id="panel-communication"
+        aria-labelledby="tab-communication"
+        hidden={tab !== 'communication'}
+      >
         <MeetPanel />
       </div>
     </main>

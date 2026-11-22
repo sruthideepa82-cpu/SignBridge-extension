@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { cameraStreamUrl } from '../lib/apiClient.js';
+import { CameraIcon, RefreshIcon } from '../ui/icons.jsx';
 
 // Shows the backend's live stream. The backend owns the webcam, so this image only reads frames from the camera
 // session that recognition already started. The image exists only while recognition runs, so closing the popup or
@@ -17,7 +18,11 @@ export default function CameraPreview({ active, offline }) {
   if (!active) {
     return (
       <div className="preview" data-state="off">
-        <p className="preview-note">The live preview appears here while recognition is running.</p>
+        <div className="preview-empty">
+          <span className="preview-orb" aria-hidden="true"><CameraIcon size={24} /></span>
+          <p className="preview-title">Camera preview</p>
+          <p className="preview-note">The live preview appears here while recognition is running.</p>
+        </div>
       </div>
     );
   }
@@ -25,33 +30,38 @@ export default function CameraPreview({ active, offline }) {
   if (offline) {
     return (
       <div className="preview" data-state="offline">
-        <p className="preview-note" role="status">SignBridge is not reachable, so the preview is paused.</p>
+        <div className="preview-empty">
+          <span className="preview-orb" aria-hidden="true"><CameraIcon size={24} /></span>
+          <p className="preview-title">Preview paused</p>
+          <p className="preview-note" role="status">SignBridge is not reachable, so the preview is paused.</p>
+        </div>
       </div>
     );
   }
 
   if (failed) {
     return (
-      <>
-        <div className="preview" data-state="error">
+      <div className="preview" data-state="error">
+        <div className="preview-empty">
+          <span className="preview-orb error" aria-hidden="true"><CameraIcon size={24} /></span>
+          <p className="preview-title">Preview unavailable</p>
           <p className="preview-note" role="alert">
             The live preview could not be shown. The webcam may be in use by another application.
           </p>
-        </div>
-        <div className="controls">
           <button
             type="button"
-            className="secondary"
+            className="button secondary small"
             onClick={() => {
               setAttempt((count) => count + 1);
               setLoaded(false);
               setFailed(false);
             }}
           >
+            <RefreshIcon size={14} />
             Retry preview
           </button>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -64,7 +74,13 @@ export default function CameraPreview({ active, offline }) {
         onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
-      {!loaded && <p className="preview-note" role="status">Starting the live preview…</p>}
+      {!loaded && (
+        <div className="preview-loading" role="status">
+          <span className="preview-spinner" aria-hidden="true" />
+          <p className="preview-note">Starting the live preview…</p>
+        </div>
+      )}
+      <div className="preview-vignette" aria-hidden="true" />
     </div>
   );
 }

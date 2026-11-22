@@ -152,6 +152,7 @@ async function ensureCaptionsWindow() {
         type: 'popup',
         width: 480,
         height: 460,
+        state: 'normal',
         focused: true,
       }),
       TIMEOUTS.window,
@@ -172,6 +173,15 @@ async function ensureCaptionsWindow() {
     );
   }
   captionsWindowId = window.id;
+  try {
+    await withTimeout(
+      chrome.windows.update(window.id, { width: 480, height: 460, state: 'normal' }),
+      2000,
+      { reason: STARTUP_REASON.WINDOW_FAILED, stage: STARTUP_STAGE.CAPTIONS_WINDOW },
+    );
+  } catch {
+    // The window still exists; the layout is responsive if the platform ignores the size.
+  }
   return { windowId: window.id, created: true };
 }
 

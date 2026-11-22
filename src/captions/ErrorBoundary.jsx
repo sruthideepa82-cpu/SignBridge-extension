@@ -36,7 +36,7 @@ export default class CaptionsErrorBoundary extends Component {
           Reload SignBridge in chrome://extensions, then start captions again. No audio or transcript was recorded.
         </p>
         <div className="captions-controls">
-          <button type="button" className="secondary" onClick={() => window.close()}>Close window</button>
+          <button type="button" className="button secondary" onClick={() => window.close()}>Close window</button>
         </div>
       </main>
     );

@@ -97,16 +97,16 @@ export function describeStartFailure(response) {
   }
   const messages = {
     [STARTUP_REASON.ALREADY_RUNNING]: 'Captions are already running in the captions window.',
-    [STARTUP_REASON.NO_TAB]: 'No active tab was found. Open the Google Meet tab and try again.',
+    [STARTUP_REASON.NO_TAB]: 'No active tab was found. Open the tab you want to caption and try again.',
     [STARTUP_REASON.BACKEND_DOWN]: 'The SignBridge backend is not running. Start it, then try again.',
     [STARTUP_REASON.TRANSCRIPTION_UNAVAILABLE]:
       'The backend has no Gemini transcription key configured. Add it to backend/.env and restart the backend.',
     [STARTUP_REASON.STREAM_ID_FAILED]:
-      'Chrome did not allow audio capture for this tab. Click the SignBridge toolbar icon on the Meet tab, then try again.',
+      'Chrome did not allow audio capture for this tab. Click the SignBridge toolbar icon on the tab you want to caption, then try again.',
     [STARTUP_REASON.STREAM_ID_TIMEOUT]:
-      'Chrome did not return a tab-capture stream in time. Reopen the popup on the Meet tab and try again.',
+      'Chrome did not return a tab-capture stream in time. Reopen the popup on the tab you want to caption and try again.',
     [STARTUP_REASON.CAPTURE_NOT_ALLOWED]:
-      'Chrome did not allow audio capture for this tab. Click the SignBridge toolbar icon on the Meet tab, then try again.',
+      'Chrome did not allow audio capture for this tab. Click the SignBridge toolbar icon on the tab you want to caption, then try again.',
     [STARTUP_REASON.OFFSCREEN_FAILED]:
       'The caption audio process could not start. Reload the extension and try again.',
     [STARTUP_REASON.OFFSCREEN_TIMEOUT]:

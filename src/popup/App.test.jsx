@@ -237,6 +237,20 @@ describe('SignBridge popup', () => {
     expect(screen.getByRole('img', { name: 'Live webcam preview' })).toBe(image);
   });
 
+  it('keeps the recognition preview mounted while visiting Live Communication', async () => {
+    vi.stubGlobal('fetch', fakeBackend({
+      '/camera/status': () => jsonResponse(cameraOn),
+      '/recognition/latest': () => jsonResponse({ status: 'no_hand', threshold: 0.7, frame_sequence: 1, experimental: true }),
+    }));
+    render(<App />);
+    const image = await screen.findByRole('img', { name: 'Live webcam preview' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Live Communication' }));
+    expect(screen.getByRole('tabpanel', { name: 'Live Communication' })).toBeVisible();
+    expect(screen.getByRole('img', { name: 'Live webcam preview', hidden: true })).toBe(image);
+    fireEvent.click(screen.getByRole('tab', { name: 'Live' }));
+    expect(screen.getByRole('img', { name: 'Live webcam preview' })).toBe(image);
+  });
+
   it('moves between tabs with the arrow and Home/End keys', () => {
     vi.stubGlobal('fetch', fakeBackend({ '/camera/status': () => jsonResponse(cameraOff) }));
     render(<App />);
@@ -246,12 +260,12 @@ describe('SignBridge popup', () => {
     expect(screen.getByRole('tab', { name: 'Message' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Message' })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Message' }), { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: 'Meet' })).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'Meet' }), { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Live Communication' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Live Communication' }), { key: 'ArrowRight' });
     expect(screen.getByRole('tab', { name: 'Live' })).toHaveAttribute('aria-selected', 'true');
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Live' }), { key: 'End' });
-    expect(screen.getByRole('tab', { name: 'Meet' })).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'Meet' }), { key: 'Home' });
+    expect(screen.getByRole('tab', { name: 'Live Communication' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Live Communication' }), { key: 'Home' });
     expect(screen.getByRole('tab', { name: 'Live' })).toHaveAttribute('aria-selected', 'true');
   });
 

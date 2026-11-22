@@ -1,7 +1,8 @@
-# Meeting captions — manual test matrix
+# Live Communication — browser audio caption test matrix
 
-**Status:** prepared and partially executed. **Google Meet compatibility is not claimed.** Rows marked **Not run** need a
-real Meet call with a second participant and must be completed before any compatibility claim.
+**Status:** prepared and partially executed. **No meeting-platform compatibility is claimed.** Rows marked **Not run**
+need a real call on that platform and must be completed before any compatibility claim. Google Meet is the first
+platform targeted; Zoom and Microsoft Teams have not been tested at all.
 
 Environment used for the local run: Windows 11 Home Single Language 10.0.26200 (x64), Google Chrome
 157.0.8103.79, local backend on `127.0.0.1:8000`, pinned extension ID
@@ -14,7 +15,7 @@ Meet's audio path, Meet UI, meeting audio layout or real participant speech.
 
 | # | Scenario | Steps | Expected | Result |
 | --- | --- | --- | --- | --- |
-| L1 | Production build | `npm ci`; `npm test`; `npm run build` | All tests pass; `dist` contains manifest, popup, captions, offscreen, background and worklet | **PASS** — 177 tests, build succeeded |
+| L1 | Production build | `npm ci`; `npm test`; `npm run build` | All tests pass; `dist` contains manifest, popup, captions, offscreen, background and worklet | **PASS** — 198 tests, build succeeded |
 | L2 | Pinned ID and Origin | Load `dist`; check ID; restart backend with pinned origin; open WS with that Origin | ID is `hfccobalkbgnibbjlmjmpjkffleccace`; WS connects; a different origin still gets 403 | **PASS** |
 | L3 | Local tab audio → Gemini | Load extension; open local audio page; invoke popup; consent; Start | Captions window shows “Listening”; interim/final text appears; no error | **PASS** — interim “The quick brown fox” observed; no final before stop |
 | L4 | Playback preservation | During L3, inspect the source page | Audio keeps playing; `currentTime` advances | **PASS** |
@@ -31,7 +32,7 @@ Meet's audio path, Meet UI, meeting audio layout or real participant speech.
 Local limitations: the SAPI source is not Meet's WebRTC playback; Gemini received a short looped phrase; no final
 utterance boundary was observed before stop.
 
-## B. Google Meet matrix (not run — requires a real call)
+## B. Meeting-platform matrix (not run — requires a real call)
 
 Run each row with Chrome 157+ on the same laptop, a second participant, headphones first, and the backend running.
 Record the date, Chrome version, Meet UI state, host load and result.
@@ -56,6 +57,8 @@ Record the date, Chrome version, Meet UI state, host load and result.
 | M16 | Meet in PWA/app window | Open Meet as an installed app | Either capture works or a clear unsupported message is shown | **Not run** |
 | M17 | Multiple Meet tabs | Two Meet tabs open; invoke on one | Only the invoked tab is captured | **Not run** |
 | M18 | Meeting chat insertion | Focus Meet chat and press Insert into page | **Out of scope for Phase 1**; no claim | **N/A** |
+| M19 | Zoom tab audio | Join a Zoom web meeting in a browser tab; second participant speaks | Same expectations as M1–M11 | **Not run** |
+| M20 | Microsoft Teams tab audio | Join a Teams web meeting in a browser tab; second participant speaks | Same expectations as M1–M11 | **Not run** |
 
 ## C. Pass criteria for a compatibility claim
 
@@ -70,7 +73,7 @@ All of the following must hold:
 7. The pinned origin remains in the backend allow-list and no wildcard is present.
 8. The README and UI wording are updated only after these results are recorded.
 
-Until then, all documentation and UI must say **experimental, not verified with Google Meet**.
+Until then, all documentation and UI must say **experimental, not verified with any meeting platform**.
 
 ## D. Defect log
 

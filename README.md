@@ -3,12 +3,12 @@
 A Chrome and Edge Manifest V3 extension for two things:
 
 1. **Experimental fingerspelling-letter recognition** from the local SignBridge backend (existing Day 1–2 feature).
-2. **Experimental meeting captions** that capture audio from a Google Meet tab and show live captions in a separate
-   SignBridge window (Phase 1 feature).
+2. **Experimental browser audio captions** that capture audio from any tab that plays sound — for example a Google
+   Meet, Zoom or Microsoft Teams tab — and show live captions in a separate SignBridge window.
 
 It is a client of the local SignBridge backend. It does not recognise signs itself, and it is not a verified ISL
-translator. Meeting captions have **not yet been verified with a real Google Meet call**; the manual test matrix is in
-`docs/MEETING_MODE_TEST_MATRIX.md`.
+translator. Live Communication has **not yet been verified with a real meeting call on any platform**; the manual test
+matrix is in `docs/MEETING_MODE_TEST_MATRIX.md`.
 
 This repository is independent of the SignBridge backend repository. The backend and its AI engine are not copied here.
 
@@ -36,17 +36,18 @@ This repository is independent of the SignBridge backend repository. The backend
 
 The extension does **not** open the webcam. The backend owns the camera.
 
-### Meeting captions (Phase 1)
+### Live Communication (Phase 1)
 
 Pipeline:
 
 ```
-Google Meet tab audio → chrome.tabCapture → offscreen document
+Selected tab audio → chrome.tabCapture → offscreen document
   → AudioWorklet → 16 kHz mono PCM → ws://127.0.0.1:8000/api/transcription/live
   → Gemini Live (relayed by the local backend) → caption state → separate SignBridge captions window
 ```
 
-- The user must invoke the extension on the Meet tab, tick the consent checkbox, and press **Start meeting captions**.
+- The user invokes SignBridge on the tab they want to caption, ticks the consent checkbox, and presses **Start browser
+  captions**. The feature is not tied to a specific meeting provider.
 - The popup opens the captions window. The offscreen document owns the tab stream, PCM processing, the WebSocket and
   the transcript. Closing the popup does not stop capture.
 - **Stop captions** closes the tab stream, the audio graph and the WebSocket immediately. Closing the captions window,
@@ -56,8 +57,8 @@ Google Meet tab audio → chrome.tabCapture → offscreen document
   not stored in `chrome.storage`, `localStorage`, IndexedDB or the backend.
 - No audio or transcript text is logged by the extension.
 
-Not in Phase 1: Meet DOM injection, automatic chat insertion, Document Picture-in-Picture, outgoing sign recognition
-changes, camera coexistence fixes, new models or new dependencies.
+Not in Phase 1: meeting-site DOM injection, automatic chat insertion, Document Picture-in-Picture, outgoing sign
+recognition changes, camera coexistence fixes, new models or new dependencies.
 
 ## Requirements
 
@@ -66,7 +67,7 @@ changes, camera coexistence fixes, new models or new dependencies.
   IDs need it).
 - The SignBridge backend running on this computer, with `backend/.env` and a Python environment.
 - For recognition: a webcam connected to this computer.
-- For meeting captions: a Gemini-enabled backend (`GEMINI_API_KEY` in `backend/.env`).
+- For Live Communication: a Gemini-enabled backend (`GEMINI_API_KEY` in `backend/.env`).
 
 ## Backend connection and pinned origin
 
@@ -102,10 +103,10 @@ extension is packaged/signed. See `docs/ARCHITECTURE.md` for the maintenance pro
 
 | Permission | Why it is needed |
 | --- | --- |
-| `activeTab` | Lets the user invoke SignBridge on the Meet tab and lets the extension start tab capture for that tab. It is temporary and granted by the toolbar click. |
+| `activeTab` | Lets the user invoke SignBridge on the tab they want to caption and lets the extension start tab capture for that tab. It is temporary and granted by the toolbar click. |
 | `scripting` | Runs one small function in the active page only when the user presses **Insert into page**. |
 | `storage` | Keeps the composed message in `chrome.storage.session` (memory only) while the popup is reopened. |
-| `tabCapture` | Captures **audio from the tab the user selected**. It is the only way to receive remote meeting audio without using the microphone. |
+| `tabCapture` | Captures **audio from the tab the user selected**. It is the only way to receive audio played by another tab without using the microphone. |
 | `offscreen` | Gives the extension a hidden document with `AudioContext`, `AudioWorklet` and `WebSocket`, because a service worker has no DOM. |
 
 - `host_permissions`: `http://127.0.0.1:8000/*` only. There is no `<all_urls>`, no `meet.google.com` host permission,
@@ -142,15 +143,15 @@ extension is packaged/signed. See `docs/ARCHITECTURE.md` for the maintenance pro
    - Confirm the extension ID is `hfccobalkbgnibbjlmjmpjkffleccace`. If it differs, the `key` is missing and the
      backend allow-list will not match.
 
-4. For meeting captions: open the Meet tab, click the SignBridge toolbar icon, tick consent and press **Start meeting
-   captions**. Use **Stop captions** in the captions window when finished.
+4. For Live Communication: open the tab you want to caption, click the SignBridge toolbar icon, tick consent and press
+   **Start browser captions**. Use **Stop capture** in the captions window when finished.
 
 5. For signing: open the popup's **Live** tab and press **Start recognition**. Google Meet's camera must be **off**
    while SignBridge uses the camera; this is the current camera policy.
 
 Rebuild with `npm run build` after changing source files, then click **Reload** on the extension card.
 
-## If meeting captions do not start
+## If Live Communication does not start
 
 The popup now reports the failing stage instead of a generic message:
 
@@ -159,7 +160,7 @@ The popup now reports the failing stage instead of a generic message:
 | “SignBridge's background worker is not running” | Open `chrome://extensions`, click **Reload** on SignBridge, reopen the popup. Check the extension card for service-worker errors. |
 | “The background worker did not answer / returned no answer” | Reload the extension and retry. The popup retries once automatically. |
 | “SignBridge was reloaded while this popup was open” | Reopen the popup. |
-| “Chrome did not allow audio capture” | Click the SignBridge toolbar icon while the Meet tab is active, then try again. |
+| “Chrome did not allow audio capture” | Click the SignBridge toolbar icon while the tab you want to caption is active, then try again. |
 | “Chrome could not open the captions window” | Close extra browser windows and retry. |
 | “The caption audio process …” | Reload the extension and retry. |
 | “The SignBridge backend is not running” / “no Gemini key” | Start the backend / add `GEMINI_API_KEY`. |
@@ -170,7 +171,7 @@ Technical details for the failing API call appear after “Details:”. The serv
 [SignBridge startup] { stage, reason, detail }
 ```
 
-It contains no audio, transcript, tab title or meeting URL. Failed starts close any partially created captions window and offscreen document, so pressing **Start** again works without restarting Chrome. If the React captions UI itself fails to load, the window stays open with a fallback message and a Close button.
+It contains no audio, transcript, tab title or page URL. Failed starts close any partially created captions window and offscreen document, so pressing **Start** again works without restarting Chrome. If the React captions UI itself fails to load, the window stays open with a fallback message and a Close button.
 
 ## Tests
 
@@ -183,14 +184,14 @@ The tests use mocks and jsdom. They do not need the backend, a webcam, a browser
 
 - the manifest, pinned ID, permissions and absence of broad host access;
 - the Day 2 backend client, recognition rules, preview and composer;
-- meeting PCM resampling and framing;
+- caption PCM resampling and framing;
 - the transcription wire protocol;
 - transport start/ready/stop, origin rejection, fatal errors and reconnect;
-- caption state, the popup meeting panel and the captions window;
+- caption state, the Live Communication panel and the captions window;
 - the popup's start, stop, error and tab-navigation behaviour.
 
-The manual Meet matrix is in `docs/MEETING_MODE_TEST_MATRIX.md`. It must be executed before claiming Google Meet
-support.
+The manual platform matrix is in `docs/MEETING_MODE_TEST_MATRIX.md`. It must be executed before claiming support for
+Google Meet, Zoom, Microsoft Teams or any other platform.
 
 ## Repository layout
 
@@ -204,15 +205,18 @@ SignBridge-Extension/
   src/offscreen/              Tab audio capture, worklet entry
   src/captions/               Captions window (React)
   src/popup/                  Popup (React)
-  src/lib/                    Backend client, recognition, meeting protocol/PCM/transport
+  src/ui/                     Shared icons and waveform primitives
+  src/styles/                 Shared lavender glass design tokens
+  src/lib/                    Backend client, recognition, caption protocol/PCM/transport
   src/test/                   Test setup
-  docs/                       Architecture, audit and Meet test matrix
+  docs/                       Architecture, UI design and platform test matrix
   vite.config.js              Multi-entry build (popup, captions, offscreen, worker, worklet)
   package.json                Scripts and dependencies
 ```
 
-Architecture details are in `docs/ARCHITECTURE.md`. The original audit is in `docs/EXTENSION_AUDIT.md`; meeting-mode
-Phase 0 results and the audit are kept outside the repository.
+Architecture details are in `docs/ARCHITECTURE.md`. The lavender glass design system is in `docs/UI_DESIGN.md`.
+The original audit is in `docs/EXTENSION_AUDIT.md`; meeting-mode Phase 0 results and the audit are kept outside the
+repository.
 
 ## Limitations
 
@@ -220,10 +224,11 @@ Phase 0 results and the audit are kept outside the repository.
   continuous signing.
 - The model is marked `unverified_dataset`; its reported accuracy is not signer-independent and is not real-world
   accuracy.
-- **Meeting captions are experimental and untested with a real Google Meet call.** The local pipeline test used a local
-  audio page, not Meet. Do not claim Google Meet compatibility before the manual matrix passes.
-- Meeting captions currently capture **tab audio only**; they do not join the meeting, read chat, read captions from
-  Meet, or inject text.
+- **Live Communication is experimental and untested with a real meeting call.** The local pipeline test used a local
+  audio page, not a meeting platform. Do not claim Google Meet, Zoom, Microsoft Teams or other platform compatibility
+  before the manual matrix passes.
+- Live Communication currently captures **tab audio only**; it does not join the meeting, read chat, read platform
+  captions or inject text.
 - Google Meet's camera must be **off** while SignBridge uses the camera. The backend camera and Chrome's camera cannot
   both produce usable frames on the tested machine.
 - The backend and Gemini must be reachable while captions run. The backend caps a browser connection at 30 minutes and

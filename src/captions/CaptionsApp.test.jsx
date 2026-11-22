@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import CaptionsApp from './CaptionsApp.jsx';
 
@@ -30,7 +30,7 @@ const listening = {
   startedAt: 1,
   droppedFrames: 0,
   captions: {
-    interim: '…and then we',
+    interim: 'â€¦and then we',
     finals: [
       { seq: 1, text: 'Good morning everyone.', at: 10 },
       { seq: 2, text: 'Can you hear me?', at: 11 },
@@ -46,16 +46,16 @@ describe('captions window', () => {
     expect(await screen.findByText(/Good morning everyone\./)).toBeInTheDocument();
     expect(screen.getByText(/Can you hear me\?/)).toBeInTheDocument();
     expect(screen.getByText(/and then we/)).toBeInTheDocument();
-    expect(screen.getByText('Captions on')).toBeInTheDocument();
+    expect(screen.getByText('Audio capture active')).toBeInTheDocument();
     expect(screen.getByText(/Nothing is recorded or saved/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Stop captions' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Stop capture' })).toBeEnabled();
   });
 
   it('stops through both the offscreen document and the service worker', async () => {
     const { chromeApi, sendMessage } = fakeChrome(listening);
     render(<CaptionsApp chromeApi={chromeApi} />);
     await screen.findByText(/Good morning/);
-    fireEvent.click(screen.getByRole('button', { name: 'Stop captions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop capture' }));
     await waitFor(() => {
       expect(sendMessage).toHaveBeenCalledWith({ target: 'offscreen', type: 'capture.stop', reason: 'user' });
       expect(sendMessage).toHaveBeenCalledWith({ target: 'background', type: 'meeting.stop', reason: 'user' });
@@ -66,7 +66,7 @@ describe('captions window', () => {
     const { chromeApi, sendMessage } = fakeChrome(listening);
     render(<CaptionsApp chromeApi={chromeApi} />);
     await screen.findByText(/Good morning/);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear text' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear captions' }));
     expect(sendMessage).toHaveBeenCalledWith({ target: 'offscreen', type: 'captions.clear' });
   });
 
@@ -92,7 +92,7 @@ describe('captions window', () => {
       snapshot: { ...listening, phase: 'starting', startedAt: 99, captions: { interim: '', finals: [] } },
     });
     await waitFor(() => expect(screen.queryByText(/Good morning/)).not.toBeInTheDocument());
-    expect(screen.getByText('Starting captions')).toBeInTheDocument();
+    expect(screen.getByText(/Starting audio capture/)).toBeInTheDocument();
   });
 
   it('shows a specific connection error and the stopped banner', async () => {
@@ -104,16 +104,47 @@ describe('captions window', () => {
     });
     render(<CaptionsApp chromeApi={chromeApi} />);
     expect(await screen.findByText(/Add the extension origin/)).toBeInTheDocument();
-    expect(screen.getByText('Captions are off')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Stop captions' })).toBeDisabled();
+    expect(screen.getByText('Capture stopped')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stop capture' })).toBeDisabled();
   });
 
-  it('offers a larger-text mode', async () => {
+  it('shows an idle empty state and the selected source tab', async () => {
+    const { chromeApi } = fakeChrome({
+      ...listening,
+      phase: 'idle',
+      tabTitle: 'Browser tab',
+      tabUrl: 'https://example.com/',
+      captions: { interim: '', finals: [] },
+    });
+    render(<CaptionsApp chromeApi={chromeApi} />);
+    expect(await screen.findByText('Ready when you are')).toBeInTheDocument();
+    expect(screen.getByText(/Start browser captions from the SignBridge popup/)).toBeInTheDocument();
+    expect(screen.getByText('Browser tab')).toBeInTheDocument();
+    expect(screen.getByText('Idle')).toBeInTheDocument();
+  });
+
+  it('shows a listening empty state while audio capture is active', async () => {
+    const { chromeApi } = fakeChrome({
+      ...listening,
+      captions: { interim: '', finals: [] },
+    });
+    render(<CaptionsApp chromeApi={chromeApi} />);
+    expect(await screen.findByText(/Waiting for the first words/)).toBeInTheDocument();
+    expect(screen.getByText('Audio capture active')).toBeInTheDocument();
+  });
+
+  it('offers three caption text sizes', async () => {
     const { chromeApi } = fakeChrome(listening);
     render(<CaptionsApp chromeApi={chromeApi} />);
-    const button = await screen.findByRole('button', { name: 'Larger text' });
-    fireEvent.click(button);
-    expect(button).toHaveAttribute('aria-pressed', 'true');
-    expect(button).toHaveTextContent('Normal text');
+    const normal = await screen.findByRole('button', { name: 'Normal text size' });
+    const large = screen.getByRole('button', { name: 'Large text size' });
+    const extra = screen.getByRole('button', { name: 'Extra large text size' });
+    expect(normal).toHaveAttribute('aria-pressed', 'true');
+    expect(large).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(extra);
+    expect(extra).toHaveAttribute('aria-pressed', 'true');
+    expect(normal).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.captions')).toHaveAttribute('data-size', 'xlarge');
   });
 });
