@@ -4,12 +4,14 @@ import { EXPERIMENTAL_LABEL, NOT_A_TRANSLATION, interpretRecognition } from '../
 import CameraPreview from './CameraPreview.jsx';
 import Composer from './Composer.jsx';
 import ConfidenceMeter from './ConfidenceMeter.jsx';
+import MeetPanel from './MeetPanel.jsx';
 import { useComposer } from './useComposer.js';
 import { useRecognition } from './useRecognition.js';
 
 const TABS = [
   { id: 'live', label: 'Live' },
   { id: 'message', label: 'Message' },
+  { id: 'meet', label: 'Meet' },
 ];
 
 function statusLabel(connection, cameraRunning) {
@@ -31,8 +33,8 @@ export default function App() {
   const [tab, setTab] = useState('live');
   const tabRefs = useRef({});
 
-  // Both panels stay mounted. Switching tabs only hides one, so the camera preview, recognition polling and the
-  // composer keep running and keep their state.
+  // All panels stay mounted. Switching tabs only hides one, so the camera preview, recognition polling, composer and
+  // meeting controls keep running and keep their state.
   const selectTab = (id) => {
     setTab(id);
     tabRefs.current[id]?.focus();
@@ -130,6 +132,10 @@ export default function App() {
 
       <div className="panel" role="tabpanel" id="panel-message" aria-labelledby="tab-message" hidden={tab !== 'message'}>
         <Composer composer={composer} />
+      </div>
+
+      <div className="panel" role="tabpanel" id="panel-meet" aria-labelledby="tab-meet" hidden={tab !== 'meet'}>
+        <MeetPanel />
       </div>
     </main>
   );

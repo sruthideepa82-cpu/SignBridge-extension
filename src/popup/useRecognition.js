@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getCameraStatus,
   getLatestRecognition,
@@ -23,6 +23,12 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  // A poll that was already in flight when the user pressed Stop must not put a letter back on screen.
+  const runningRef = useRef(false);
+
+  useEffect(() => {
+    runningRef.current = cameraRunning;
+  }, [cameraRunning]);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +36,7 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
       .then((status) => {
         if (cancelled) return;
         setConnection('online');
+        runningRef.current = status.running === true;
         setCameraRunning(status.running === true);
       })
       .catch((err) => {
@@ -50,7 +57,7 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
     const poll = async () => {
       try {
         const response = await api.getLatestRecognition();
-        if (cancelled) return;
+        if (cancelled || !runningRef.current) return;
         setConnection('online');
         setError(null);
         setResult({ ...interpretRecognition(response), sequence: response.frame_sequence ?? null });
@@ -77,6 +84,7 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
     try {
       const status = await api.startCamera();
       setConnection('online');
+      runningRef.current = status.running === true;
       setCameraRunning(status.running === true);
       if (status.running !== true) {
         setError(status.last_error || 'The camera did not start. Check the backend console.');
@@ -84,6 +92,7 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
     } catch (err) {
       setConnection(err.code === 'backend_unreachable' ? 'offline' : 'online');
       setCameraRunning(false);
+      runningRef.current = false;
       setError(err.message);
     } finally {
       setBusy(false);
@@ -93,6 +102,7 @@ export function useRecognition({ api = DEFAULT_API, pollIntervalMs = POLL_INTERV
   const stop = useCallback(async () => {
     setBusy(true);
     setError(null);
+    runningRef.current = false;
     try {
       await api.stopCamera();
       setCameraRunning(false);

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,14 +9,21 @@ import { BACKEND_ORIGIN } from './lib/config.js';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const manifest = JSON.parse(readFileSync(resolve(root, 'public', 'manifest.json'), 'utf8'));
 
+function extensionIdFromKey(key) {
+  const hash = createHash('sha256').update(Buffer.from(key, 'base64')).digest('hex').slice(0, 32);
+  return hash.split('').map((digit) => String.fromCharCode(97 + parseInt(digit, 16))).join('');
+}
+
 describe('extension manifest', () => {
   it('is Manifest V3', () => {
     expect(manifest.manifest_version).toBe(3);
   });
 
-  it('opens the popup page that exists in the project', () => {
+  it('opens the popup page and the captions window that exist in the project', () => {
     expect(manifest.action.default_popup).toBe('popup.html');
     expect(existsSync(resolve(root, manifest.action.default_popup))).toBe(true);
+    expect(existsSync(resolve(root, 'captions.html'))).toBe(true);
+    expect(existsSync(resolve(root, 'offscreen.html'))).toBe(true);
   });
 
   it('declares the SignBridge icon for the extension and the toolbar, at all four sizes', () => {
@@ -44,12 +52,26 @@ describe('extension manifest', () => {
     expect(manifest.host_permissions).not.toContain('<all_urls>');
   });
 
-  it('requests only activeTab, scripting and storage, with no camera permission and no content scripts', () => {
-    expect(manifest.permissions).toEqual(['activeTab', 'scripting', 'storage']);
+  it('requests the approved meeting permissions and no broad tab or website access', () => {
+    expect(manifest.permissions).toEqual(['activeTab', 'scripting', 'storage', 'tabCapture', 'offscreen']);
     expect(manifest.permissions).not.toContain('tabs');
     expect(manifest.permissions).not.toContain('unlimitedStorage');
+    expect(manifest.permissions).not.toContain('sidePanel');
     expect(manifest.content_scripts).toBeUndefined();
     expect(manifest.web_accessible_resources).toBeUndefined();
+  });
+
+  it('runs one module service worker for capture orchestration', () => {
+    expect(manifest.background).toEqual({ service_worker: 'background.js', type: 'module' });
+  });
+
+  it('requires Chrome 116 for service-worker to offscreen stream IDs', () => {
+    expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(116);
+  });
+
+  it('pins the extension ID that the backend CORS allow-list names', () => {
+    expect(manifest.key).toBeTypeOf('string');
+    expect(extensionIdFromKey(manifest.key)).toBe('hfccobalkbgnibbjlmjmpjkffleccace');
   });
 
   it('labels itself as experimental, not as a translator', () => {

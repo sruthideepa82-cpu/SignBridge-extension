@@ -4,6 +4,10 @@ Status of this document: written as the pre-build audit in the development copy 
 reference. Paths such as `extension/` refer to that development copy. The extension now lives in its own repository.
 Current architecture: see `ARCHITECTURE.md`. Port: the backend runs on 8000 (see Section 3 notes and `README.md`).
 
+> Phase 1 update (22 November 2026): meeting captions now add `tabCapture`, `offscreen` and a background service
+> worker. This audit's permission and scope sections describe the original Day 1–2 state only. See `README.md`,
+> `ARCHITECTURE.md` and `MEETING_MODE_TEST_MATRIX.md` for the current design.
+
 ## 1. Original project status (verified)
 
 - Location: `D:\Ctrl+ME\PROJECTS\SignBridge`

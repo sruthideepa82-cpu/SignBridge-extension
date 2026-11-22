@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "SignBridge (experimental letter recognition)",
+  "name": "SignBridge (experimental letter recognition and meeting captions)",
   "short_name": "SignBridge",
   "version": "0.1.0",
-  "description": "Experimental fingerspelling-letter recognition from your local SignBridge backend. Not a verified ISL translator.",
+  "description": "Experimental fingerspelling-letter recognition and meeting captions from your local SignBridge backend. Not a verified ISL translator.",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjuVi9RxjFjagG4W5/rKLzRsZjQmuVrBXMGaGrHwxvvFNITSfgz4wJiwbbC3dE/9yaNyvvEPJrYdrsFnkfrxfyxs39Bn3KCX7FEwyaR7mnkljInDlnziZXA2FPp51K9kvYEjwpJXR96jyNSQ2I5q7GiO8AyKsUFeHpJQGGeAWyxYzJUo8W6EdwQ1REQXPAWkk/BBg5T/JcJcHvXyu9vmlMKTURw/QtblI6S8wkd+dFje0BmIwLPS6+6AS7gbsAgemStquQfm9qrbRBNtrwVr0yn5rFKILfoo2N2cL3FVEr9JqYY/IYydUxLU1mPJ2B00aNKFUzfD8sstrLOHaM1xqPQIDAQAB",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -20,10 +22,16 @@
       "128": "icons/icon-128.png"
     }
   },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "tabCapture",
+    "offscreen"
   ],
   "host_permissions": [
     "http://127.0.0.1:8000/*"

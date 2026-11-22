@@ -2,7 +2,7 @@
   "name": "signbridge-extension",
   "private": true,
   "version": "0.1.0",
-  "description": "SignBridge Chrome extension (Manifest V3). Day 1: popup, local backend connection, experimental letter display.",
+  "description": "SignBridge Chrome extension (Manifest V3): experimental letter recognition, message composer and meeting captions.",
   "type": "module",
   "scripts": {
     "build": "vite build",
