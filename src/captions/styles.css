@@ -64,16 +64,9 @@ body {
   flex: 0 0 38px;
   width: 38px;
   height: 38px;
-  border: 1px solid rgba(233, 225, 255, 0.3);
   border-radius: 13px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.02)),
-    linear-gradient(135deg, var(--sb-lavender), var(--sb-periwinkle));
-  color: #1b1334;
-  font-size: 13px;
-  font-weight: 850;
-  letter-spacing: -0.02em;
-  box-shadow: 0 9px 24px rgba(133, 137, 232, 0.28), var(--sb-inner);
+  object-fit: contain;
+  box-shadow: 0 9px 22px rgba(133, 137, 232, 0.28);
 }
 
 .captions h1 {

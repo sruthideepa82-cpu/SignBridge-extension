@@ -69,10 +69,7 @@ export default function App() {
 
       <header className="app-header">
         <div className="brand">
-          <div className="logo" aria-hidden="true">
-            <span>SB</span>
-            <i className="logo-spark" />
-          </div>
+          <img className="logo" src="icons/icon-48.png" alt="" width="36" height="36" />
           <div className="brand-copy">
             <h1>SignBridge</h1>
             <p>Accessibility, connected.</p>

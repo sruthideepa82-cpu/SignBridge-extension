@@ -89,7 +89,7 @@ export default function CaptionsApp({ chromeApi = globalThis.chrome }) {
     <main className="captions" data-size={textSize}>
       <header className="captions-head">
         <div className="captions-brand">
-          <span className="captions-logo" aria-hidden="true">SB</span>
+          <img className="captions-logo" src="icons/icon-48.png" alt="" width="38" height="38" />
           <div>
             <h1>Live captions</h1>
             <p>Browser audio · Experimental</p>
